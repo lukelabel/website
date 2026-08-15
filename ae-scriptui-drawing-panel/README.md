@@ -46,13 +46,14 @@ Click **Create** again any time to start a fresh drawing layer — handy for
 separating rounds of notes, or giving a new idea its own layer you can
 toggle visibility on/off independently.
 
-### Limit to current frame
+### Limit to 48 frames
 
-Check **Limit to current frame** before clicking Create to trim the new
-layer to a single frame at the playhead instead of the full comp duration.
-Move the playhead and click Create again to add another one-frame layer —
-useful for flip-book-style, frame-by-frame animatic sketches where each
-drawing should only appear on its own frame.
+Check **Limit to 48 frames** before clicking Create to trim the new layer
+to a 48-frame span starting at the playhead, instead of the full comp
+duration (clamped to the comp's end if the playhead is near it). Move the
+playhead and click Create again to start another 48-frame layer — handy
+for giving each beat of an animatic its own bounded drawing layer instead
+of one sketch stretching across the whole timeline.
 
 ## Notes & limitations
 

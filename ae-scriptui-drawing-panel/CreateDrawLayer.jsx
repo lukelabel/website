@@ -21,6 +21,7 @@
 (function createDrawLayerPanel(thisObj) {
 
   var BASE_NAME_DEFAULT = "Draw";
+  var LIMITED_SPAN_FRAMES = 48;
 
   function getActiveComp() {
     var item = app.project.activeItem;
@@ -54,18 +55,19 @@
     }
   }
 
-  function createDrawLayer(comp, baseName, currentFrameOnly) {
+  function createDrawLayer(comp, baseName, limitSpan) {
     // An empty shape layer is fully transparent by default and supports
     // the Paint tool directly, so it's a clean canvas for brush strokes
     // with nothing to mask or clear out first.
     var layer = comp.layers.addShape();
     layer.name = uniqueLayerName(comp, baseName || BASE_NAME_DEFAULT);
 
-    if (currentFrameOnly) {
+    if (limitSpan) {
       var frameDuration = 1 / comp.frameRate;
+      var spanEnd = comp.time + (LIMITED_SPAN_FRAMES * frameDuration);
       layer.startTime = 0;
       layer.inPoint = comp.time;
-      layer.outPoint = comp.time + frameDuration;
+      layer.outPoint = Math.min(spanEnd, comp.duration);
     }
 
     deselectAll(comp);
@@ -74,14 +76,14 @@
     return layer;
   }
 
-  function onCreate(baseName, currentFrameOnly) {
+  function onCreate(baseName, limitSpan) {
     var comp = getActiveComp();
     if (!comp) return;
 
     var layer;
     app.beginUndoGroup("Create Draw Layer");
     try {
-      layer = createDrawLayer(comp, baseName, currentFrameOnly);
+      layer = createDrawLayer(comp, baseName, limitSpan);
     } finally {
       app.endUndoGroup();
     }
@@ -107,10 +109,10 @@
     var nameInput = nameGroup.add("edittext", undefined, BASE_NAME_DEFAULT);
     nameInput.characters = 14;
 
-    var frameCheckbox = win.add("checkbox", undefined, "Limit to current frame");
-    frameCheckbox.helpTip = "Trims the new layer to a single frame at the " +
-      "playhead — click Create again on later frames to sketch a new " +
-      "drawing per frame, flip-book style.";
+    var frameCheckbox = win.add("checkbox", undefined, "Limit to 48 frames");
+    frameCheckbox.helpTip = "Trims the new layer to 48 frames starting at " +
+      "the playhead — click Create again further down the timeline to " +
+      "start a fresh 48-frame drawing layer, animatic-beat style.";
     frameCheckbox.value = false;
 
     var createBtn = win.add("button", undefined, "Create");
