@@ -53,23 +53,29 @@ misbehaves, the manual buttons are the reliable fallback while you debug.
 
 ## Install
 
-Both apps need **two files each**: the panel script and a shared copy of
-`DrawBridgeShared.jsxinc` (the panel `#include`s it by relative path, so
-it has to sit next to the panel file in the same folder).
+Each app needs **one file** — no shared include, no second file to keep
+track of.
 
-**After Effects** — copy `AEDrawBridge.jsx` and `DrawBridgeShared.jsxinc` into:
+**After Effects** — copy `AEDrawBridge.jsx` into:
 - **Mac:** `/Applications/Adobe After Effects <version>/Scripts/ScriptUI Panels/`
 - **Windows:** `C:\Program Files\Adobe\Adobe After Effects <version>\Support Files\Scripts\ScriptUI Panels\`
 
-**Photoshop** — copy `PSDrawBridge.jsx` and `DrawBridgeShared.jsxinc` into:
-- **Mac:** `/Applications/Adobe Photoshop <version>/Presets/Scripts/ScriptUI Panels/`
-- **Windows:** `C:\Program Files\Adobe\Adobe Photoshop <version>\Presets\Scripts\ScriptUI Panels\`
+Restart After Effects. Find it under **Window > AEDrawBridge.jsx** (drag
+the tab into a dock to pin it, like any other AE panel). It also runs as
+a floating window via **File > Scripts > Run Script File...** without
+installing, if you'd rather try it that way first.
 
-Restart both apps. Find the panels under **Window > AEDrawBridge.jsx** in
-After Effects and **Window > PSDrawBridge.jsx** in Photoshop (drag either
-tab into a dock to pin it). Both also run as floating windows via
-**File > Scripts > Run Script File...** without installing, if you'd
-rather try them that way first.
+**Photoshop** — copy `PSDrawBridge.jsx` into:
+- **Mac:** `/Applications/Adobe Photoshop <version>/Presets/Scripts/`
+- **Windows:** `C:\Program Files\Adobe\Adobe Photoshop <version>\Presets\Scripts\`
+
+Restart Photoshop. Run it from **File > Scripts > PSDrawBridge**. Unlike
+After Effects, Photoshop has no auto-docking "ScriptUI Panels" folder
+convention — there's nothing to find under the Window menu, and that's
+expected, not a bug. The script opens as a floating, non-modal palette
+window that stays up on its own once launched; leave it floating next to
+your document while you work. You can also run it via **File > Scripts >
+Browse...** and selecting the file directly, without installing it at all.
 
 This bridge writes files to your Documents folder, so make sure scripts
 are allowed to write to disk: **After Effects** — Preferences > Scripting
@@ -77,6 +83,10 @@ are allowed to write to disk: **After Effects** — Preferences > Scripting
 **Photoshop** doesn't gate this the same way, but if writes silently fail
 there, check Preferences > Plug-ins for anything scripting-related your
 version added.
+
+If a panel fails to open at all, it now shows the actual error in an
+alert instead of silently vanishing — screenshot that message if you need
+to report a bug.
 
 ## Usage
 

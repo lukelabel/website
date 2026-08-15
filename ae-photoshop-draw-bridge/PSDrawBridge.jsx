@@ -10,19 +10,70 @@
      preserved) to the bridge folder for AEDrawBridge.jsx to pick up and
      add as a new layer in the comp.
 
-  Install alongside DrawBridgeShared.jsx (this file needs it, via
-  #include below) in:
-    Adobe Photoshop <version>/Presets/Scripts/ScriptUI Panels/
-  then open it from Photoshop via Window > Extensions (or Window >
-  AEDrawBridge, depending on version) > PSDrawBridge.jsx.
+  Install: copy this single file into
+    Adobe Photoshop <version>/Presets/Scripts/
+  Restart Photoshop. It runs from File > Scripts > PSDrawBridge as a
+  floating (non-modal) palette window — Photoshop has no equivalent to
+  After Effects' auto-docking "ScriptUI Panels" folder, so this always
+  launches as a one-off script rather than living in the Window menu.
+  Once open, the window stays up on its own; leave it floating next to
+  your document while you work.
 
-  Install AEDrawBridge.jsx (+ its own copy of DrawBridgeShared.jsx) the
-  same way in After Effects' Scripts/ScriptUI Panels folder — see
-  README.md in this folder for the full setup/usage walkthrough and
+  You can also run it without installing, via File > Scripts > Browse...
+  and selecting this file directly.
+
+  Install AEDrawBridge.jsx the same way in After Effects' Scripts/
+  ScriptUI Panels folder (that one DOES dock, under the Window menu) —
+  see README.md in this folder for the full setup/usage walkthrough and
   honest limitations (this is snapshot-based, not literally live video).
 */
 
-#include "DrawBridgeShared.jsxinc"
+// --- Bridge folder helpers ----------------------------------------
+// Both panels read/write this same folder on disk to hand frames and
+// drawings back and forth — no server process, ports, or CEP tooling.
+
+function drawBridgeFolder() {
+  var f = new Folder(Folder.myDocuments.fsName + "/AE-PS-Draw-Bridge");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeInboxFolder() {
+  var f = new Folder(drawBridgeFolder().fsName + "/drawing-inbox");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeFrameFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.png");
+}
+
+function drawBridgeMetaFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.json");
+}
+
+function drawBridgeReadText(file) {
+  if (!file.exists) return null;
+  file.encoding = "UTF-8";
+  file.open("r");
+  var text = file.read();
+  file.close();
+  return text;
+}
+
+function drawBridgeReadJson(file) {
+  var text = drawBridgeReadText(file);
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+function drawBridgeHasScheduleTask() {
+  return (typeof app.scheduleTask === "function");
+}
 
 // --- Global state -----------------------------------------------------
 // Kept at file/global scope, outside the UI-building IIFE below, because
@@ -261,10 +312,15 @@ function psDrawBridge_tick() {
     return win;
   }
 
-  var panel = buildUI(thisObj);
-  if (panel instanceof Window) {
-    panel.center();
-    panel.show();
+  try {
+    var panel = buildUI(thisObj);
+    if (panel instanceof Window) {
+      panel.center();
+      panel.show();
+    }
+  } catch (e) {
+    alert("PS Draw Bridge failed to open:\n\n" + e.toString() +
+      (e.line ? ("\n\n(line " + e.line + ")") : ""));
   }
 
 })(this);

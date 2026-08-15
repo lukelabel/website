@@ -7,18 +7,66 @@
    - Watches for drawings Photoshop sends back and imports each one as a
      new, comp-sized image layer at the top of the stack.
 
-  Install alongside DrawBridgeShared.jsx (this file needs it, via
-  #include below) in:
+  Install: copy this single file into
     Adobe After Effects <version>/Scripts/ScriptUI Panels/
-  then open it from After Effects via Window > AEDrawBridge.jsx.
+  then open it from After Effects via Window > AEDrawBridge.jsx (drag the
+  tab to dock it like any other panel).
 
-  Install PSDrawBridge.jsx (+ its own copy of DrawBridgeShared.jsx) the
-  same way in Photoshop's Scripts/ScriptUI Panels folder — see README.md
-  in this folder for the full setup and usage walkthrough, plus honest
-  limitations (this is snapshot-based, not literally live video).
+  It also runs as a floating window via File > Scripts > Run Script
+  File... without installing anything.
+
+  Install PSDrawBridge.jsx in Photoshop's Presets/Scripts folder (not a
+  ScriptUI Panels subfolder — Photoshop has no equivalent auto-docking
+  convention, so it runs from File > Scripts > PSDrawBridge as a floating
+  window instead of a docked panel) — see README.md in this folder for
+  the full setup/usage walkthrough and honest limitations (this is
+  snapshot-based, not literally live video).
 */
 
-#include "DrawBridgeShared.jsxinc"
+// --- Bridge folder helpers ----------------------------------------
+// Both panels read/write this same folder on disk to hand frames and
+// drawings back and forth — no server process, ports, or CEP tooling.
+
+function drawBridgeFolder() {
+  var f = new Folder(Folder.myDocuments.fsName + "/AE-PS-Draw-Bridge");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeInboxFolder() {
+  var f = new Folder(drawBridgeFolder().fsName + "/drawing-inbox");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeInboxImportedFolder() {
+  var f = new Folder(drawBridgeInboxFolder().fsName + "/imported");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeFrameFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.png");
+}
+
+function drawBridgeMetaFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.json");
+}
+
+function drawBridgeWriteText(file, text) {
+  file.encoding = "UTF-8";
+  file.open("w");
+  file.write(text);
+  file.close();
+}
+
+function drawBridgeWriteJson(file, obj) {
+  drawBridgeWriteText(file, JSON.stringify(obj));
+}
+
+function drawBridgeHasScheduleTask() {
+  return (typeof app.scheduleTask === "function");
+}
 
 // --- Global state -----------------------------------------------------
 // These live at file/global scope (outside the UI-building IIFE below)
@@ -214,10 +262,15 @@ function aeDrawBridge_tick() {
     return win;
   }
 
-  var panel = buildUI(thisObj);
-  if (panel instanceof Window) {
-    panel.center();
-    panel.show();
+  try {
+    var panel = buildUI(thisObj);
+    if (panel instanceof Window) {
+      panel.center();
+      panel.show();
+    }
+  } catch (e) {
+    alert("AE Draw Bridge failed to open:\n\n" + e.toString() +
+      (e.line ? ("\n\n(line " + e.line + ")") : ""));
   }
 
 })(this);
