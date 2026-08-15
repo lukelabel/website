@@ -1,0 +1,79 @@
+/*
+  DrawBridgeShared.jsxinc
+
+  Helpers shared by AEDrawBridge.jsx (After Effects) and PSDrawBridge.jsx
+  (Photoshop). Both panels talk to each other through a small folder on
+  disk instead of a network connection — the two apps run on the same
+  machine, so plain files are the simplest reliable transport, and it
+  needs no server process, ports, or CEP tooling to install or debug.
+
+  Copy this file into the SAME ScriptUI Panels folder as whichever panel
+  script you're installing (both apps need their own copy).
+
+  Bridge folder layout (created on first use, under the user's Documents):
+    AE-PS-Draw-Bridge/
+      latest-frame.png        - most recent AE comp frame, exported by AE
+      latest-frame.json       - metadata for that frame (time, size, stamp)
+      drawing-inbox/          - PNGs Photoshop sends, waiting for AE to import
+      drawing-inbox/imported/ - processed drawings, kept for reference
+*/
+
+function drawBridgeFolder() {
+  var f = new Folder(Folder.myDocuments.fsName + "/AE-PS-Draw-Bridge");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeInboxFolder() {
+  var f = new Folder(drawBridgeFolder().fsName + "/drawing-inbox");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeInboxImportedFolder() {
+  var f = new Folder(drawBridgeInboxFolder().fsName + "/imported");
+  if (!f.exists) f.create();
+  return f;
+}
+
+function drawBridgeFrameFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.png");
+}
+
+function drawBridgeMetaFile() {
+  return new File(drawBridgeFolder().fsName + "/latest-frame.json");
+}
+
+function drawBridgeWriteText(file, text) {
+  file.encoding = "UTF-8";
+  file.open("w");
+  file.write(text);
+  file.close();
+}
+
+function drawBridgeReadText(file) {
+  if (!file.exists) return null;
+  file.encoding = "UTF-8";
+  file.open("r");
+  var text = file.read();
+  file.close();
+  return text;
+}
+
+function drawBridgeReadJson(file) {
+  var text = drawBridgeReadText(file);
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+function drawBridgeWriteJson(file, obj) {
+  drawBridgeWriteText(file, JSON.stringify(obj));
+}
+
+function drawBridgeHasScheduleTask() {
+  return (typeof app.scheduleTask === "function");
+}
