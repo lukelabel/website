@@ -7,6 +7,10 @@
    2. Creates a comp-size fill layer with a "Fade Amount" Slider Control
       effect wired to its opacity, so raising the slider in the Effect
       Controls panel fades out the layers underneath it.
+   3. Opens the Draw Layer's Layer panel next to the Composition panel
+      (AE's built-in Paint workspace), since AE's Paint tools only ever
+      apply strokes in the Layer panel — this keeps the composited layers
+      below visible as reference while you paint.
 
   Install: copy this file into
     Adobe After Effects <version>/Scripts/ScriptUI Panels/
@@ -40,6 +44,33 @@
     return layer;
   }
 
+  function resolveDrawLayer(comp) {
+    if (comp.selectedLayers.length === 1) return comp.selectedLayers[0];
+    for (var i = 1; i <= comp.numLayers; i++) {
+      if (comp.layer(i).name === DRAW_LAYER_NAME) return comp.layer(i);
+    }
+    return null;
+  }
+
+  // After Effects' Paint tools only ever apply strokes in the Layer panel,
+  // which can't show other layers composited behind the one you're
+  // painting. The closest native workaround is AE's built-in "Paint"
+  // workspace, which docks a Layer panel next to the Composition panel so
+  // you can see the full composite (refreshed after each stroke) while you
+  // paint. This opens that layout for the given layer.
+  function openLayerForPainting(layer) {
+    layer.selected = true;
+    try {
+      layer.openInViewer();
+    } catch (e) {}
+    try {
+      var cmdId = app.findMenuCommandId("Paint");
+      app.executeCommand(cmdId);
+    } catch (e2) {
+      alert('Could not switch to the Paint workspace automatically. Choose "Window > Workspace > Paint" to see the Layer panel and Composition panel side by side.');
+    }
+  }
+
   function createFadeLayer(comp, color) {
     var layer = comp.layers.addSolid(color, FADE_LAYER_NAME, comp.width, comp.height, comp.pixelAspect, comp.duration);
     layer.name = FADE_LAYER_NAME;
@@ -64,10 +95,12 @@
   function onCreateDrawLayer() {
     var comp = getActiveComp();
     if (!comp) return;
+    var drawLayer;
     withUndoGroup("Create Draw Layer", function () {
-      createDrawLayer(comp);
+      drawLayer = createDrawLayer(comp);
     });
-    alert('Draw Layer added. Press "Ctrl+B" / "Cmd+B" to select the Brush tool, then paint on the selected layer.');
+    openLayerForPainting(drawLayer);
+    alert('Draw Layer added. Layer panel opened next to the Composition panel (Paint workspace). Press "Ctrl+B" / "Cmd+B" for the Brush tool and paint in the Layer panel — the Composition panel beside it updates with the full composite after each stroke.');
   }
 
   function onCreateFadeLayer(colorRgb) {
@@ -81,13 +114,26 @@
   function onCreateBoth(colorRgb) {
     var comp = getActiveComp();
     if (!comp) return;
+    var drawLayer;
     withUndoGroup("Create Draw + Fade Layers", function () {
       // Fade layer is created first so the Draw layer (created second)
       // ends up above it in the stack, on top of the fade fill.
       createFadeLayer(comp, colorRgb);
-      createDrawLayer(comp);
+      drawLayer = createDrawLayer(comp);
     });
-    alert('Draw Layer and Fade Fill added. Press "Ctrl+B" / "Cmd+B" to select the Brush tool, select the Draw Layer, then paint.');
+    openLayerForPainting(drawLayer);
+    alert('Draw Layer and Fade Fill added. Layer panel opened next to the Composition panel (Paint workspace). Press "Ctrl+B" / "Cmd+B" for the Brush tool and paint in the Layer panel — the Composition panel beside it updates with the full composite after each stroke.');
+  }
+
+  function onOpenForPainting() {
+    var comp = getActiveComp();
+    if (!comp) return;
+    var drawLayer = resolveDrawLayer(comp);
+    if (!drawLayer) {
+      alert('Select the layer you want to paint, or create a Draw Layer first.');
+      return;
+    }
+    openLayerForPainting(drawLayer);
   }
 
   function buildUI(thisObj) {
@@ -118,8 +164,13 @@
     var bothBtn = win.add("button", undefined, "Create Both (stacked)");
     bothBtn.onClick = function () { onCreateBoth(selectedColor()); };
 
+    var openBtn = win.add("button", undefined, "Open for Painting");
+    openBtn.onClick = onOpenForPainting;
+
     var note = win.add("statictext", undefined,
-      "Fade slider appears in Effect Controls on the Fade Fill layer.",
+      "Fade slider appears in Effect Controls on the Fade Fill layer. " +
+      "Painting always happens in the Layer panel (an AE limitation) — " +
+      "the buttons above dock it next to the Composition panel for reference.",
       { multiline: true });
     note.preferredSize.width = 220;
 
