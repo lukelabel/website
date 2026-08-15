@@ -2,10 +2,26 @@
   CreateDrawLayer.jsx
 
   A dockable After Effects ScriptUI panel with one job: click "Create" and
-  get a blank, transparent, comp-sized layer ready for the built-in
-  pressure-sensitive Paint (Brush) tool — a fast way to sketch notes,
-  annotations, or animatic linework directly over your composition without
-  touching the layers underneath.
+  get a comp-sized layer ready for the built-in, pressure-sensitive Paint
+  (Brush) tool — a fast way to sketch notes, annotations, or animatic
+  linework directly in the Composition viewer, with the rest of your comp
+  visible as reference the whole time.
+
+  The created layer is a Solid, not an empty shape layer. A Solid always
+  has a real, comp-sized bounding box, so After Effects can hit-test your
+  clicks directly in the Composition panel and paint there in place —
+  an empty shape layer has no bounding box to hit-test against, which is
+  what forces AE to fall back to the isolated single-layer Layer panel
+  view (losing sight of everything below) instead of painting in context.
+
+  Because a Solid starts fully opaque, check "Paint on Transparent" in the
+  Tools panel options bar (appears once the Brush tool is active) before
+  your first stroke — that's a one-time toggle per AE session, not a
+  script setting, since After Effects only exposes it as a paint-tool
+  option and it doesn't exist as a scriptable property until a stroke has
+  been painted. With it checked, the solid's own fill is left out of the
+  render entirely; only your strokes show, composited over whatever is
+  beneath the layer.
 
   Install: copy this file into
     Adobe After Effects <version>/Scripts/ScriptUI Panels/
@@ -55,12 +71,15 @@
     }
   }
 
-  function createDrawLayer(comp, baseName, limitSpan) {
-    // An empty shape layer is fully transparent by default and supports
-    // the Paint tool directly, so it's a clean canvas for brush strokes
-    // with nothing to mask or clear out first.
-    var layer = comp.layers.addShape();
-    layer.name = uniqueLayerName(comp, baseName || BASE_NAME_DEFAULT);
+  function createDrawLayer(comp, baseName, limitSpan, fillColor) {
+    // A comp-sized Solid has a real bounding box, so clicks in the
+    // Composition panel hit-test onto it directly instead of AE falling
+    // back to the isolated Layer panel view. "Paint on Transparent"
+    // (toggled once by hand, see header note) drops the solid's own fill
+    // from the render so only the painted strokes remain visible.
+    var name = uniqueLayerName(comp, baseName || BASE_NAME_DEFAULT);
+    var layer = comp.layers.addSolid(fillColor, name,
+      comp.width, comp.height, comp.pixelAspect, comp.duration);
 
     if (limitSpan) {
       var frameDuration = 1 / comp.frameRate;
@@ -76,21 +95,21 @@
     return layer;
   }
 
-  function onCreate(baseName, limitSpan) {
+  function onCreate(baseName, limitSpan, fillColor) {
     var comp = getActiveComp();
     if (!comp) return;
 
     var layer;
     app.beginUndoGroup("Create Draw Layer");
     try {
-      layer = createDrawLayer(comp, baseName, limitSpan);
+      layer = createDrawLayer(comp, baseName, limitSpan, fillColor);
     } finally {
       app.endUndoGroup();
     }
 
-    // AE's scripting API has no public command to switch the active tool,
-    // so the panel can't auto-select the Brush tool — a one-time nudge in
-    // the status line is the best we can do.
+    // AE's scripting API has no public command to switch the active tool
+    // or toggle "Paint on Transparent", so the panel can't do either for
+    // you — a one-time nudge in the status line is the best we can do.
     return layer;
   }
 
@@ -109,6 +128,18 @@
     var nameInput = nameGroup.add("edittext", undefined, BASE_NAME_DEFAULT);
     nameInput.characters = 14;
 
+    var colorGroup = win.add("group");
+    colorGroup.add("statictext", undefined, "Fill color:");
+    var colorDropdown = colorGroup.add("dropdownlist", undefined, ["Black", "White"]);
+    colorDropdown.selection = 0;
+    colorDropdown.helpTip = "Only matters if you forget to check " +
+      "\"Paint on Transparent\" — with it checked, the fill color never " +
+      "shows up in the render.";
+
+    function selectedColor() {
+      return colorDropdown.selection.index === 0 ? [0, 0, 0] : [1, 1, 1];
+    }
+
     var frameCheckbox = win.add("checkbox", undefined, "Limit to 48 frames");
     frameCheckbox.helpTip = "Trims the new layer to 48 frames starting at " +
       "the playhead — click Create again further down the timeline to " +
@@ -118,18 +149,20 @@
     var createBtn = win.add("button", undefined, "Create");
     createBtn.onClick = function () {
       var baseName = (nameInput.text || "").replace(/^\s+|\s+$/g, "");
-      var layer = onCreate(baseName || BASE_NAME_DEFAULT, frameCheckbox.value);
+      var layer = onCreate(baseName || BASE_NAME_DEFAULT, frameCheckbox.value, selectedColor());
       if (layer) {
-        status.text = '"' + layer.name + '" added and selected. ' +
-          "Press Ctrl+B / Cmd+B to grab the Brush tool, then paint.";
+        status.text = '"' + layer.name + '" added and selected. Press ' +
+          "Ctrl+B / Cmd+B, then check \"Paint on Transparent\" in the " +
+          "options bar (once per session) and draw directly in the " +
+          "Composition viewer.";
       }
     };
 
     var status = win.add("statictext", undefined,
-      "Open a comp and click Create to add a transparent layer to draw on.",
+      "Open a comp and click Create to add a layer to draw on.",
       { multiline: true });
-    status.preferredSize.width = 200;
-    status.preferredSize.height = 46;
+    status.preferredSize.width = 220;
+    status.preferredSize.height = 60;
 
     win.layout.layout(true);
     win.layout.resize();
